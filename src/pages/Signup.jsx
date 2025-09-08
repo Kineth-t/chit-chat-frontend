@@ -52,7 +52,7 @@ export default function Signup() {
                     <input type="password" placeholder="Password" onChange={(e) => setPassword2(e.target.value)} 
                     className="username-input" maxLength={20} required disabled={isLoading}/>
                     
-                    <button type="submit" disabled={!email.trim() || !password.trim() || isLoading} 
+                    <button type="submit" disabled={!username.trim() || !email.trim() || !password.trim() || isLoading} 
                     className="join-btn">
                         {isLoading ? 'Creating account...' : "Sign up"}
                     </button>

@@ -147,5 +147,14 @@ export const authService = {
             console.error('Error occurred during fetching of private messages', error);
             throw error;
         }
+    },
+    getOnlineUsers: async () => {
+        try {
+            const response = await api.get("/auth/getonlineusers");
+            return response.data;
+        }
+        catch (error) {
+            console.error("Error in fetching all online users.", error);
+        }
     }
 }

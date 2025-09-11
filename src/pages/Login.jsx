@@ -16,7 +16,7 @@ export default function Login() {
         setIsLoading(true);
 
         try {
-            const result = await authService.login(username, email, password);
+            const result = await authService.login(username, password);
             if (result.success) {
                 setMessage("Log in succesful!");
                 setTimeout(() => {

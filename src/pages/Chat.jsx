@@ -3,6 +3,7 @@ import { authService } from "../services/authService";
 import { useCallback, useEffect, useRef, useState } from "react";
 import SockJS from "sockjs-client";
 import { Stomp } from "@stomp/stompjs";
+import { PrivateChat } from './PrivateChat'
 
 export default function Chat() {
     const navigate = useNavigate();
@@ -166,11 +167,100 @@ export default function Chat() {
                         <div key={user}
                         className={`user-item ${user === username ? 'current-user' : ''}`}
                         onClick={() => openPrivateChat(user)}>
-                            <div className="user-avatar"></div>
+                            <div className="user-avatar">
+                                {user.charAt(0).toUpperCase()}
+                            </div>
+                            <span>{user}</span>
+                            {user===username && <span className="you-label">(You)</span>}
+                            {unreadMessages.has(user) && (
+                                <span className="unread-count">{unreadMessages.get(user)}</span>
+                            )}
                         </div>
                     })}
                 </div>
             </div>
+            <div className="main-chat">
+                <div className="chat-header">
+                    <h4>Welcome, {username}</h4>
+                </div>
+                <div className="messages-container">
+                    {messages.map((msg) => (
+                        <div key={msg.id} className={`message ${msg.type.toLowercase()}`}>
+                            {msg.type === "JOIN" && (
+                                <div className="system-message">
+                                    {msg.sender} joined the group
+                                </div>
+                            )}
+                            {msg.type === "LEAVE" && (
+                                <div className="system-message">
+                                    {msg.sender} left the group
+                                </div>
+                            )}
+                            {msg.type === "CHAT" && (
+                                <div className={`chat-message ${msg.sender === username ? 'own-message' : ''}`}>
+                                    <div className="message-info">
+                                        <span className="sender">
+                                            {message.sender}
+                                        </span>
+                                        <span className="time">
+                                            {formatTime(msg.timestamp)}
+                                        </span>
+                                    </div>
+                                    <div className="message-text">
+                                        {msg.content}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    ))}
+
+                    {isTyping && isTyping !== username && (
+                        <div className="typing-indicator">
+                            {isTyping} is typing...
+                        </div>
+                    )}
+                    <div ref={messageEndRef} />
+                </div>
+
+                <div className="input-area">
+                    {showEmojiSelector && (
+                        <div className="emoji-picker">
+                            {emojis.map((emoji) => (
+                                <button key={emoji} onClick={() => addEmoji(emoji)}>
+                                    {emoji}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
+                    <form onSubmit={sendMessage} className="message-form">
+                        <button type="button"
+                        onClick={() => setShowEmojiSelector(prev => {return !prev})}
+                        className="emoji-btn">
+                            😀
+                        </button>
+                        <input type="text" placeholder="Message"
+                        value={message}
+                        onChange={handleTyping}
+                        className="message-input" />
+                        <button type="submit" 
+                        className="send-btn"
+                        disabled={!message.trim()}>
+                            Send
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            {Array.from(privateChats.keys()).map((user) => (
+                <PrivateChat key={user}
+                currentUser={username}
+                recipientUser={user}
+                stompClient={stompClient}
+                onClose={() => closePrivateChat(user)}
+                registerPrivateMessageHandler={registerPrivateMessageHandler}
+                unregisterPrivateMessageHandler={unregisterPrivateMessageHandler} />
+            ))}
         </div>
     )
 };

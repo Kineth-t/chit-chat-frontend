@@ -155,6 +155,7 @@ export const authService = {
         }
         catch (error) {
             console.error("Error in fetching all online users.", error);
+            throw error;
         }
     }
 }

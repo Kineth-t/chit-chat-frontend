@@ -17,18 +17,18 @@ export default function Chat() {
 
     }, [currentUser, navigate]);
 
-    const [message, setMessage] = useState('');
-    const [messages, setMessages] = useState('');
-    const [showEmojiSelector, setShowEmojiSelector] = useState(false);
-    const [isTyping, setIsTyping] = useState('');
-    const [privateChats, setPrivateChats] = useState(new Map( ));
-    const [unreadMessages, setUnreadMessages] = useState(new Map());
-    const [onlineUsers, setOnlineUsers] = useState(new Set());
+    const [message, setMessage] = useState(''); // Current input in the message field
+    const [messages, setMessages] = useState(''); // All group chat messages.
+    const [showEmojiSelector, setShowEmojiSelector] = useState(false); // Whether the emoji picker is open.
+    const [isTyping, setIsTyping] = useState(''); // Who is currently typing.
+    const [privateChats, setPrivateChats] = useState(new Map( )); // A map of open private chats (username -> chat data)
+    const [unreadMessages, setUnreadMessages] = useState(new Map()); // A map to track unread private messages per user.
+    const [onlineUsers, setOnlineUsers] = useState(new Set()); // A set of online usernames.
 
-    const privateMessageHandlers = useRef(new Map());
-    const stompClient = useRef(null);
-    const messageEndRef = useRef(null);
-    const typingTimeoutRef = useRef(null);
+    const privateMessageHandlers = useRef(new Map()); // Shared WebSocket client.
+    const stompClient = useRef(null); // Used for auto-scrolling to the end.
+    const messageEndRef = useRef(null); // For handling "user is typing" indicator.
+    const typingTimeoutRef = useRef(null); // Holds callbacks for private chat updates.
 
     const emojis = ['😂', '🥹', '😅', '😁', '🤨', '😎', '🥳', '😏', '😒', '😔', '☹️', '😣', '😫',
                     '😭', '😡', '😤', '🤔', '🫣', '🤫', '😐', '🙄', '👍', '👎', '❤️']
@@ -47,6 +47,7 @@ export default function Chat() {
     })
 
     useEffect(() => {
+        // Connects to SockJS WebSocket and STOMP
         let reconnectInterval;
 
         const connectAndFetch = async () => {
@@ -59,15 +60,20 @@ export default function Chat() {
                 return prevSet;
             });
 
+            // Connection Setup
             const socket = new SockJS("http://localhost:8080/ws");
             stompClient.current = Stomp.over(socket);
 
+            // STOMP Connection & Subscriptions
             stompClient.current.connect({
+                // Connects with headers including username.
                 'client_id': username,
                 'session-id': Date.now().toString(),
                 'username': username
-            }, (frame) => {
+            }, (frame) => { // This callback runs when connection is successful
+                            // 'frame' contains the server's response
                 clearInterval(reconnectInterval);
+                // Subscribes to /topic/public: Group chat messages.
                 const GroupChat = stompClient.current.subscribe('/topic/public', (msg) => {
                     const chatMessage = JSON.parse(msg.body);
                     
@@ -96,10 +102,12 @@ export default function Chat() {
                         }]);
                     });
                 });
+                // Subscribes to /user/{username}/queue/private: Private messages to this user.
                 const privateChat = stompClient.current.subscribe(`/user/${username}/queue/private`, (msg) => {
                     const privateMessage = JSON.parse(msg.bodu);
                     const otherUser = privateMessage.sender === username ? privateMessage.recipient : privateMessage.sender;
 
+                    // Incoming Private Messages
                     const handler = privateMessageHandlers.current.get(otherUser);
                     if (handler) {
                         try {
@@ -155,6 +163,51 @@ export default function Chat() {
             clearInterval(reconnectInterval);
         };
     }, [username, registerPrivateMessageHandler, unregisterPrivateMessageHandler]);
+
+    const openPrivateChat = (otherUser) => {
+        if (otherUser === username) return;
+
+        setPrivateChats(prev => {
+            const newChats = new Map(prev);
+            newChats.set(otherUser, true);
+            return newChats;
+        })
+
+        setUnreadMessages(prev => {
+            const newUnread = new Map(prev);
+            newUnread.delete(otherUser);
+            return newUnread;
+        })
+    };
+
+    const closePrivateChat = (otherUser) => {
+        setPrivateChats(prev => {
+            const newChats = new Map(prev);
+            newChats.delete(otherUser);
+            return newChats;
+        })
+
+        unregisterPrivateMessageHandler(otherUser);
+    };
+
+    const sendMessage = (e) => {
+        e.preventDefault();
+        if(message.trim() && stompClient.current && stompClient.current.connected) {
+            const chatMessage = {
+                sender: username,
+                content: message,
+                type: 'CHAT'
+            }
+
+            stompClient.current.send("/app/chat.sendMessage", {}, JSON.stringify(chatMessage));
+            setMessage('');
+            setShowEmojiSelector(false);
+        }
+    };
+
+    const handleTyping = () => {
+        
+    }
 
     return (
         <div className="chat-container">

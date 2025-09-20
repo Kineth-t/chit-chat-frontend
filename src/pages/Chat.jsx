@@ -205,8 +205,29 @@ export default function Chat() {
         }
     };
 
-    const handleTyping = () => {
-        
+    const handleTyping = (e) => {
+        setMessage(e.target.value);
+
+        if (stompClient.current && stompClient.current.connected && e.target.value.trim()) {
+            stompClient.current.send("/app/chat.sendmessage", {}, JSON.stringify({
+                sender: username,
+                type: 'TYPING'
+            }));
+        }
+    };
+
+    const addEmoji = (emoji) => {
+        setMessage(prev => prev + emoji);
+        setShowEmojiSelector(false);
+    };
+
+    const formatTime = (timestamp) => {
+        return new Date(timestamp).toLocaleDateString('en-US', {
+            timeZone: 'Asia/Singapore',
+            hour12: false,
+            hour: '2-digit',
+            minute: '2-digit',
+        })
     }
 
     return (
